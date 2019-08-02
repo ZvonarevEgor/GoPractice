@@ -2,59 +2,51 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
+const (
+	ErrEmptyArgs  MyError = "Not received the name of the file as argument!"
+	ErrBrokenLink MyError = "An unexpected name. Make sure the file is in the extension '.txt'"
+)
+
 type FileName string
-type ErrEmptyArgs int
-type ErrBrokenLink string
+type MyError string
 type MyMap func(string) map[string][][]string
 type MyReduce func(map[string][][]string) map[string][]int
 
-func (e ErrEmptyArgs) Error() string {
-	return fmt.Sprintf("Not received the name of the file as argument!")
-}
-
-func (e ErrBrokenLink) Error() string {
-	return fmt.Sprintf("An unexpected name. Make sure the file is in the extension '.txt'")
+func (m MyError) Error() string {
+	return string(m)
 }
 
 //Get the file name via command line arguments.
 func GetLink(l *FileName) error {
 	if len(os.Args) < 2 {
-		return ErrEmptyArgs(0)
-	} else if os.Args[1][len(os.Args[1])-3:] != "txt" {
-		return ErrBrokenLink("notTxt")
+		return ErrEmptyArgs
+	} else if arg := os.Args[1]; filepath.Ext(arg) != ".txt" {
+		return ErrBrokenLink
 	} else {
-		*l = FileName(os.Args[1])
+		*l = FileName(arg)
 	}
 	return nil
 }
 
 //Get the contents of the file.
-func DataFromTxt(l FileName) string {
-	file, err := os.Open(string(l))
+func DataFromTxt(link FileName) (string, error)  {
+	file, err := os.Open(string(link))
+	if err != nil {
+		return "", err
+	}
 	defer file.Close()
+	content, err := ioutil.ReadFile(string(link))
 	if err != nil {
-		fmt.Println(err)
-		return ""
+		return "", err
 	}
-	stat, err := file.Stat()
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	data := make([]byte, stat.Size())
-	for {
-		_, err := file.Read(data)
-		if err == io.EOF {
-			break //Stop reading the file if it is finished.
-		}
-	}
-	return string(data)
+	return string(content), nil
 }
 
 func MapReduce(d string, M MyMap, R MyReduce) map[string][]int {
@@ -93,7 +85,7 @@ func Reduce(arr map[string][][]string) map[string][]int {
 //Format the string and output the contents.
 func PrintResult(m map[string][]int) {
 	for key := range m {
-		fmt.Print("\n\n", key, ": ")
+		fmt.Print("\n", key, ": ")
 		for _, item := range m[key] {
 			fmt.Print(item, " ")
 		}
@@ -105,8 +97,12 @@ func main() {
 	if err := GetLink(&link); err != nil {
 		fmt.Println(err)
 	} else {
-		data := DataFromTxt(link)
-		result := MapReduce(data, Map, Reduce)
-		PrintResult(result)
+		data, err := DataFromTxt(link)
+		if err == nil {
+			result := MapReduce(data, Map, Reduce)
+			PrintResult(result)
+		} else {
+			fmt.Println(err)
+		}
 	}
 }
