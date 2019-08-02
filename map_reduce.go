@@ -93,7 +93,10 @@ func Reduce(arr map[string][][]string) map[string][]int {
 //Format the string and output the contents.
 func PrintResult(m map[string][]int) {
 	for key := range m {
-		fmt.Printf("%v: %v %v %v %v %v %v\n", key, m[key][0], m[key][1], m[key][2], m[key][3], m[key][4], m[key][5])
+		fmt.Print("\n\n", key, ": ")
+		for _, item := range m[key] {
+			fmt.Print(item, " ")
+		}
 	}
 }
 
